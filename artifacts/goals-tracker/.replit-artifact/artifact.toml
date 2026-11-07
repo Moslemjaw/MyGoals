@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Goals Tracker"
+description = "A simple personal goals tracker with progress, deadlines, and private goals stored in Supabase."
+version = "1.0.0"
+id = "artifacts/goals-tracker"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25310
+
+[services.development]
+run = "pnpm --filter @workspace/goals-tracker run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/goals-tracker", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/goals-tracker/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25310"
+BASE_PATH = "/"
