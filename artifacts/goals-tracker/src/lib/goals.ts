@@ -2,10 +2,25 @@ import { createClient } from '@supabase/supabase-js';
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+const EXPECTED_SUPABASE_HOST = 'xwnqnehjznhjikcayhon.supabase.co';
 const LEGACY_STORAGE_KEY = 'steady-goals-v1';
 const STORAGE_MIGRATION_KEY = 'steady-supabase-import-v1';
 
-const supabase = url && key
+const configuredHost = (() => {
+  try {
+    return url ? new URL(url).hostname : null;
+  } catch {
+    return null;
+  }
+})();
+export const configReady = Boolean(url && key && configuredHost === EXPECTED_SUPABASE_HOST);
+export const configError = !url || !key
+  ? 'Supabase is not configured. Add its project URL and publishable key to this deployment, then reload.'
+  : configuredHost !== EXPECTED_SUPABASE_HOST
+    ? `This app is connected to the wrong Supabase project. In Vercel, set VITE_SUPABASE_URL to https://${EXPECTED_SUPABASE_HOST} and use that same project’s publishable key.`
+    : null;
+
+const supabase = configReady
   ? createClient(url, key, {
       auth: {
         persistSession: true,
@@ -15,8 +30,6 @@ const supabase = url && key
       },
     })
   : null;
-
-export const configReady = Boolean(supabase);
 
 export interface Goal {
   id: string;
@@ -35,7 +48,7 @@ export interface Goal {
 export type GoalInput = Omit<Goal, 'id' | 'created_at' | 'updated_at'>;
 
 function backend() {
-  if (!supabase) throw new Error('Supabase is not configured. Add its project URL and publishable key, then reload.');
+  if (!supabase) throw new Error(configError ?? 'Supabase is not configured. Add its project URL and publishable key, then reload.');
   return supabase;
 }
 

@@ -28,6 +28,7 @@ _Populate as you build — short repo map plus pointers to the source-of-truth f
 ## Architecture decisions
 
 - The user wants goals saved in Supabase without requiring a visible login. Use Supabase anonymous auth and the existing per-user RLS policies; never expose goals through public unauthenticated policies.
+- The user selected the Supabase project `xwnqnehjznhjikcayhon`. Vercel must use that project's URL and publishable key; reject other project hosts so goals do not silently go to a different database.
 - Supabase anonymous sign-ins must be enabled in the project's Auth settings. The app prompts for this configuration if guest session creation is disabled.
 - A previous app version saved goals under `steady-goals-v1` in browser local storage. On first guest session, import them to Supabase and only clear the local copy after Supabase confirms success.
 - The connected Supabase project is shared with another app. Its signup trigger requires `role` and `full_name` metadata; anonymous guest creation sends the non-privileged customer role and a generic name. Do not weaken its trigger or RLS policies.

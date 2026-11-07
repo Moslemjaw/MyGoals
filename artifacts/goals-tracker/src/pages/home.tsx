@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { format, isPast, parseISO } from 'date-fns';
 import { Check, Pencil, Plus, Search, Trash2, RotateCcw, Minus, CalendarDays } from 'lucide-react';
 import {
-  listGoals, createGoal, updateGoal, deleteGoal, startGuestSession, importLegacyGoals, configReady,
+  listGoals, createGoal, updateGoal, deleteGoal, startGuestSession, importLegacyGoals, configReady, configError,
   type Goal, type GoalInput,
 } from '@/lib/goals';
 import { Button } from '@/components/ui/button';
@@ -377,7 +377,7 @@ export default function Home() {
   useEffect(() => {
     let mounted = true;
     if (!configReady) {
-      setConnectionError('Supabase is not configured. Add the project URL and publishable key to this deployment, then reload.');
+      setConnectionError(configError ?? 'Supabase configuration is incomplete. Check the project URL and publishable key, then reload.');
       return () => { mounted = false; };
     }
     void (async () => {
