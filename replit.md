@@ -32,6 +32,7 @@ _Populate as you build — short repo map plus pointers to the source-of-truth f
 - The user explicitly selected their connected Supabase project for the backend and database. Do not migrate this product to the template's Replit database.
 - Supabase's existing goals table, row-level security, and email authentication are reused. The frontend talks directly to Supabase; the template Express service is not the goals backend.
 - Supabase email authentication is used rather than adding a second identity provider because the existing goals policies already enforce Supabase user ownership.
+- This Supabase project is shared with another application whose signup trigger requires a `customer` or `tailor` role. Goals-tracker signup supplies the non-privileged `customer` role; do not disable or weaken that shared trigger to fix signup.
 
 ## Product
 

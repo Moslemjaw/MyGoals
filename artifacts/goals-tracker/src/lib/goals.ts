@@ -46,7 +46,13 @@ export async function signIn(email: string, password: string) {
 }
 
 export async function signUp(email: string, password: string) {
-  const { data, error } = await backend().auth.signUp({ email, password });
+  // The shared Supabase project's existing profile trigger requires this
+  // non-privileged role. Keep its other application's signup rules intact.
+  const { data, error } = await backend().auth.signUp({
+    email,
+    password,
+    options: { data: { role: 'customer' } },
+  });
   if (error) throw error;
   if (data.user?.identities?.length === 0) throw new Error('This email is already registered. Please sign in instead.');
   return { needsConfirmation: !data.session };
