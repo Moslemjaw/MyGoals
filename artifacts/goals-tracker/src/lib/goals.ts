@@ -21,7 +21,7 @@ export const configError = !url || !key
     : null;
 
 const supabase = configReady
-  ? createClient(url, key, {
+  ? createClient(url!, key!, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
