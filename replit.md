@@ -1,6 +1,6 @@
 # Steady — Goals Tracker
 
-A simple no-login goals tracker with deadlines, numeric progress, completion, and browser-local persistence.
+A simple no-login goals tracker with deadlines, numeric progress, completion, and private Supabase persistence.
 
 ## Run & Operate
 
@@ -27,8 +27,10 @@ _Populate as you build — short repo map plus pointers to the source-of-truth f
 
 ## Architecture decisions
 
-- The user chose no-login, browser-local goal storage instead of Supabase sync. Goals are isolated by browser and site origin; clearing browser data can remove them.
-- The connected Supabase project is shared with another app and has its own signup requirements. Do not change its authentication or database policies for this tracker unless the user requests Supabase sync again.
+- The user wants goals saved in Supabase without requiring a visible login. Use Supabase anonymous auth and the existing per-user RLS policies; never expose goals through public unauthenticated policies.
+- Supabase anonymous sign-ins must be enabled in the project's Auth settings. The app prompts for this configuration if guest session creation is disabled.
+- A previous app version saved goals under `steady-goals-v1` in browser local storage. On first guest session, import them to Supabase and only clear the local copy after Supabase confirms success.
+- The connected Supabase project is shared with another app. Its signup trigger requires `role` and `full_name` metadata; anonymous guest creation sends the non-privileged customer role and a generic name. Do not weaken its trigger or RLS policies.
 
 ## Product
 

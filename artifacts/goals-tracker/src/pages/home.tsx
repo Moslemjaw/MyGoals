@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { format, isPast, parseISO } from 'date-fns';
 import { Check, Pencil, Plus, Search, Trash2, RotateCcw, Minus, CalendarDays } from 'lucide-react';
 import {
-  listGoals, createGoal, updateGoal, deleteGoal,
+  listGoals, createGoal, updateGoal, deleteGoal, startGuestSession, importLegacyGoals, configReady,
   type Goal, type GoalInput,
 } from '@/lib/goals';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,22 @@ const CAT_HUE: Record<string, string> = {
 const KEY = ['goals'];
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const pct = (g: Goal) => (g.target > 0 ? Math.min(100, Math.round((g.current / g.target) * 100)) : 0);
+
+function ConnectionProblem({ message }: { message: string }) {
+  return (
+    <main className="min-h-[100dvh] grid place-items-center p-6">
+      <div className="rise max-w-lg rounded-3xl border bg-card p-8 shadow-sm" data-testid="status-connection-needed">
+        <Mark className="h-10 w-10" />
+        <h1 className="font-display mt-4 text-3xl">One quick setup step</h1>
+        <p className="mt-3 text-muted-foreground">{message}</p>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Your existing browser-saved goals have not been removed. Reload after enabling guest access to import them into Supabase.
+        </p>
+        <Button className="mt-6 rounded-full" onClick={() => window.location.reload()}>Try again</Button>
+      </div>
+    </main>
+  );
+}
 
 function Mark({ className }: { className?: string }) {
   return (
@@ -256,7 +272,7 @@ function Dashboard() {
     <div className="min-h-[100dvh]">
       <header className="mx-auto flex max-w-6xl items-center gap-3 px-5 pt-6 md:px-8">
         <Mark className="h-7 w-7" /><span className="font-display text-xl">Steady</span>
-        <span className="ml-auto text-xs text-muted-foreground sm:text-sm" data-testid="text-storage-mode">Saved on this browser</span>
+        <span className="ml-auto text-xs text-muted-foreground sm:text-sm" data-testid="text-storage-mode">Private Supabase guest account</span>
       </header>
 
       <main className="mx-auto max-w-6xl px-5 pb-24 md:px-8">
@@ -355,5 +371,28 @@ function Dashboard() {
 }
 
 export default function Home() {
+  const [ready, setReady] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    if (!configReady) {
+      setConnectionError('Supabase is not configured. Add the project URL and publishable key to this deployment, then reload.');
+      return () => { mounted = false; };
+    }
+    void (async () => {
+      try {
+        await startGuestSession();
+        await importLegacyGoals();
+        if (mounted) setReady(true);
+      } catch (error) {
+        if (mounted) setConnectionError(errMsg(error));
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  if (connectionError) return <ConnectionProblem message={connectionError} />;
+  if (!ready) return <div className="min-h-[100dvh] grid place-items-center" data-testid="status-session-loading"><Mark className="h-10 w-10 animate-pulse" /></div>;
   return <Dashboard />;
 }
