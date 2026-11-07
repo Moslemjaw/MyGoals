@@ -1,16 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-
-const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
-export const configReady = Boolean(url && key);
-const client = configReady ? createClient(url!, key!, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'steady-auth' },
-}) : null;
-
-function backend() {
-  if (!client) throw new Error('Supabase connection is not configured yet.');
-  return client;
-}
+const STORAGE_KEY = 'steady-goals-v1';
 
 export interface Goal {
   id: string;
@@ -28,42 +16,38 @@ export interface Goal {
 
 export type GoalInput = Omit<Goal, 'id' | 'created_at' | 'updated_at'>;
 
-export async function getSession() {
-  const { data, error } = await backend().auth.getSession();
-  if (error) throw error;
-  return data.session;
+function readGoals(): Goal[] {
+  const stored = window.localStorage.getItem(STORAGE_KEY);
+  if (!stored) return [];
+
+  const parsed: unknown = JSON.parse(stored);
+  if (
+    !Array.isArray(parsed) ||
+    parsed.some((goal) =>
+      !goal ||
+      typeof goal !== 'object' ||
+      typeof goal.id !== 'string' ||
+      typeof goal.title !== 'string' ||
+      typeof goal.target !== 'number' ||
+      typeof goal.current !== 'number' ||
+      typeof goal.completed !== 'boolean'
+    )
+  ) {
+    throw new Error('Your saved goals could not be read. Your browser data has not been changed.');
+  }
+  return parsed as Goal[];
 }
 
-export function onAuthChange(callback: () => void) {
-  if (!client) return () => {};
-  const { data } = client.auth.onAuthStateChange(() => { callback(); });
-  return () => data.subscription.unsubscribe();
+function writeGoals(goals: Goal[]) {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(goals));
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+      throw new Error('This browser is out of storage space. Free up browser storage and try again.');
+    }
+    throw new Error('Your browser could not save this change. Check that local storage is available.');
+  }
 }
-
-export async function signIn(email: string, password: string) {
-  const { error } = await backend().auth.signInWithPassword({ email, password });
-  if (error) throw error;
-}
-
-export async function signUp(email: string, password: string) {
-  // The shared Supabase project's existing profile trigger requires this
-  // non-privileged role. Keep its other application's signup rules intact.
-  const { data, error } = await backend().auth.signUp({
-    email,
-    password,
-    options: { data: { role: 'customer' } },
-  });
-  if (error) throw error;
-  if (data.user?.identities?.length === 0) throw new Error('This email is already registered. Please sign in instead.');
-  return { needsConfirmation: !data.session };
-}
-
-export async function signOut() {
-  const { error } = await backend().auth.signOut();
-  if (error) throw error;
-}
-
-const fields = 'id,title,description,category,target,current,unit,due_date,completed,created_at,updated_at';
 
 function validate(input: Partial<GoalInput>) {
   if (input.title !== undefined && (!input.title.trim() || input.title.length > 200))
@@ -79,30 +63,43 @@ function validate(input: Partial<GoalInput>) {
 }
 
 export async function listGoals(): Promise<Goal[]> {
-  const { data, error } = await backend().from('goal_tracker_goals').select(fields).order('created_at', { ascending: false });
-  if (error) throw error;
-  return data as Goal[];
+  return readGoals().sort((a, b) => b.created_at.localeCompare(a.created_at));
 }
 
 export async function createGoal(input: GoalInput): Promise<Goal> {
   validate(input);
-  const { data, error } = await backend().from('goal_tracker_goals')
-    .insert({ ...input, title: input.title.trim() }).select(fields).single();
-  if (error) throw error;
-  return data as Goal;
+  const now = new Date().toISOString();
+  const goal: Goal = {
+    ...input,
+    title: input.title.trim(),
+    id: crypto.randomUUID(),
+    created_at: now,
+    updated_at: now,
+  };
+  writeGoals([goal, ...readGoals()]);
+  return goal;
 }
 
 export async function updateGoal(id: string, input: Partial<GoalInput>): Promise<Goal> {
   validate(input);
-  const { data, error } = await backend().from('goal_tracker_goals')
-    .update({ ...input, ...(input.title !== undefined ? { title: input.title.trim() } : {}), updated_at: new Date().toISOString() })
-    .eq('id', id).select(fields).single();
-  if (error) throw error;
-  return data as Goal;
+  const goals = readGoals();
+  const index = goals.findIndex((goal) => goal.id === id);
+  if (index === -1) throw new Error('This goal was not found. Refresh and try again.');
+
+  const goal: Goal = {
+    ...goals[index],
+    ...input,
+    ...(input.title !== undefined ? { title: input.title.trim() } : {}),
+    updated_at: new Date().toISOString(),
+  };
+  goals[index] = goal;
+  writeGoals(goals);
+  return goal;
 }
 
 export async function deleteGoal(id: string): Promise<void> {
-  const { data, error } = await backend().from('goal_tracker_goals').delete().eq('id', id).select('id');
-  if (error) throw error;
-  if (!data?.length) throw new Error('This goal was not found. Refresh and try again.');
+  const goals = readGoals();
+  const remaining = goals.filter((goal) => goal.id !== id);
+  if (remaining.length === goals.length) throw new Error('This goal was not found. Refresh and try again.');
+  writeGoals(remaining);
 }

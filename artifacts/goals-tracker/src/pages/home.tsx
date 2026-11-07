@@ -2,10 +2,9 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
 import { format, isPast, parseISO } from 'date-fns';
-import { Check, Pencil, Plus, Search, Trash2, LogOut, RotateCcw, Minus, CalendarDays, PlugZap } from 'lucide-react';
+import { Check, Pencil, Plus, Search, Trash2, RotateCcw, Minus, CalendarDays } from 'lucide-react';
 import {
   listGoals, createGoal, updateGoal, deleteGoal,
-  signIn, signUp, signOut, getSession, onAuthChange, configReady,
   type Goal, type GoalInput,
 } from '@/lib/goals';
 import { Button } from '@/components/ui/button';
@@ -38,83 +37,6 @@ function Mark({ className }: { className?: string }) {
       <rect x="13" y="14" width="6" height="14" rx="2" fill="hsl(var(--primary))" opacity=".75" />
       <rect x="22" y="6" width="6" height="22" rx="2" fill="hsl(var(--accent))" />
     </svg>
-  );
-}
-
-/* ---------- Setup + Auth ---------- */
-function SetupNeeded() {
-  return (
-    <main className="min-h-[100dvh] grid place-items-center p-6">
-      <div className="rise max-w-md rounded-3xl border bg-card p-8 shadow-sm" data-testid="status-setup-needed">
-        <PlugZap className="h-8 w-8 text-accent" />
-        <h1 className="font-display mt-4 text-3xl">Steady needs a connection</h1>
-        <p className="mt-3 text-muted-foreground">
-          The Supabase connection isn't configured yet, so there's nowhere to save your goals. Add the
-          project URL and anon key to the environment, then reload. Nothing is stored until then.
-        </p>
-      </div>
-    </main>
-  );
-}
-
-function AuthScreen() {
-  const [mode, setMode] = useState<'in' | 'up'>('in');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setBusy(true); setError(null); setNotice(null);
-    try {
-      if (mode === 'in') await signIn(email, password);
-      else {
-        const r = await signUp(email, password);
-        if (r.needsConfirmation) setNotice('Check your inbox to confirm your email, then sign in.');
-      }
-    } catch (err) { setError(errMsg(err)); } finally { setBusy(false); }
-  }
-
-  return (
-    <main className="min-h-[100dvh] grid md:grid-cols-[1.1fr_1fr]">
-      <section className="relative flex flex-col justify-between overflow-hidden bg-primary p-8 md:p-14 text-primary-foreground">
-        <div className="flex items-center gap-2 rise"><Mark className="h-8 w-8" /><span className="font-display text-2xl">Steady</span></div>
-        <div className="my-14 rise" style={{ animationDelay: '.1s' }}>
-          <h1 className="font-display text-5xl md:text-7xl leading-[0.95]">Small steps,<br /><em className="text-accent">kept.</em></h1>
-          <p className="mt-6 max-w-sm text-primary-foreground/75 text-lg">
-            A quiet place for the things you mean to do. Name a goal, nudge it forward, and watch the little moves add up.
-          </p>
-        </div>
-        <div className="flex items-end gap-2 h-24 rise" style={{ animationDelay: '.2s' }} aria-hidden>
-          {[18, 26, 34, 30, 44, 52, 61, 70, 84, 100].map((h, i) => (
-            <div key={i} className="w-5 rounded-t-md" style={{ height: `${h}%`, background: i === 9 ? 'hsl(var(--accent))' : 'hsl(var(--primary-foreground) / .18)' }} />
-          ))}
-        </div>
-      </section>
-      <section className="grid place-items-center p-6 md:p-14">
-        <form onSubmit={submit} className="w-full max-w-sm rise space-y-5" style={{ animationDelay: '.15s' }} aria-labelledby="auth-title">
-          <h2 id="auth-title" className="font-display text-3xl">{mode === 'in' ? 'Welcome back' : 'Make your space'}</h2>
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} data-testid="input-email" className="h-11" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" minLength={6} autoComplete={mode === 'in' ? 'current-password' : 'new-password'} required value={password} onChange={(e) => setPassword(e.target.value)} data-testid="input-password" className="h-11" />
-          </div>
-          {error && <p role="alert" className="text-sm text-destructive" data-testid="text-auth-error">{error}</p>}
-          {notice && <p role="status" className="text-sm text-primary" data-testid="text-auth-notice">{notice}</p>}
-          <Button type="submit" disabled={busy} className="w-full h-11 rounded-full" data-testid="button-auth-submit">
-            {busy ? 'One moment...' : mode === 'in' ? 'Sign in' : 'Create account'}
-          </Button>
-          <button type="button" onClick={() => { setMode(mode === 'in' ? 'up' : 'in'); setError(null); setNotice(null); }} className="w-full text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline" data-testid="button-toggle-auth-mode">
-            {mode === 'in' ? 'New here? Create an account' : 'Already have one? Sign in'}
-          </button>
-        </form>
-      </section>
-    </main>
   );
 }
 
@@ -295,7 +217,7 @@ function GoalCard({ goal, onEdit, onDelete }: { goal: Goal; onEdit: () => void; 
 }
 
 /* ---------- Dashboard ---------- */
-function Dashboard({ email }: { email?: string }) {
+function Dashboard() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const q = useQuery({ queryKey: KEY, queryFn: listGoals, refetchInterval: 30000 });
@@ -334,8 +256,7 @@ function Dashboard({ email }: { email?: string }) {
     <div className="min-h-[100dvh]">
       <header className="mx-auto flex max-w-6xl items-center gap-3 px-5 pt-6 md:px-8">
         <Mark className="h-7 w-7" /><span className="font-display text-xl">Steady</span>
-        <span className="ml-auto hidden sm:block text-sm text-muted-foreground truncate" data-testid="text-user-email">{email}</span>
-        <Button variant="ghost" size="sm" className="rounded-full" onClick={() => signOut().catch((e) => toast({ title: 'Sign out failed', description: errMsg(e), variant: 'destructive' }))} data-testid="button-sign-out"><LogOut className="h-4 w-4" /> <span className="sr-only sm:not-sr-only">Sign out</span></Button>
+        <span className="ml-auto text-xs text-muted-foreground sm:text-sm" data-testid="text-storage-mode">Saved on this browser</span>
       </header>
 
       <main className="mx-auto max-w-6xl px-5 pb-24 md:px-8">
@@ -433,27 +354,6 @@ function Dashboard({ email }: { email?: string }) {
   );
 }
 
-type Session = { user: { id: string; email?: string } } | null;
-
 export default function Home() {
-  const qc = useQueryClient();
-  const [session, setSession] = useState<Session | undefined>(undefined);
-  const [authErr, setAuthErr] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!configReady) return;
-    let alive = true;
-    getSession().then((s) => alive && setSession(s)).catch((e) => { if (alive) { setAuthErr(errMsg(e)); setSession(null); } });
-    const off = onAuthChange(() => {
-      getSession().then((s) => { if (alive) { qc.removeQueries({ queryKey: KEY }); setSession(s); setAuthErr(null); } }).catch((e) => { if (alive) { qc.removeQueries({ queryKey: KEY }); setSession(null); setAuthErr(errMsg(e)); } });
-    });
-    return () => { alive = false; off(); };
-  }, [qc]);
-
-  if (!configReady) return <SetupNeeded />;
-  if (session === undefined) {
-    return <div className="min-h-[100dvh] grid place-items-center" data-testid="status-session-loading"><Mark className="h-10 w-10 animate-pulse" /></div>;
-  }
-  if (!session) return <>{authErr && <p role="alert" className="fixed top-3 inset-x-0 text-center text-sm text-destructive z-10">{authErr}</p>}<AuthScreen /></>;
-  return <Dashboard email={session.user.email} />;
+  return <Dashboard />;
 }
