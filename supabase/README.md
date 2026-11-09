@@ -1,6 +1,6 @@
 # Stripe test checkout for Steady
 
-The Pro button starts a one-time **1 KWD test-mode** Stripe Checkout. Only a
+The Pro button starts a one-time **USD $1 test-mode** Stripe Checkout. Only a
 verified Stripe webhook can grant Pro access; a full refund removes it. The
 entitlement table is isolated from the other app tables and uses row-level
 security so each signed-in guest can read only their own status.

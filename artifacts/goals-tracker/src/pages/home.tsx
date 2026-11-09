@@ -315,7 +315,7 @@ function Dashboard() {
               disabled={checkout.isPending || proQuery.isLoading}
               data-testid="button-test-pro"
             >
-              {checkout.isPending ? 'Opening checkout…' : 'Test Pro · 1 KWD'}
+              {checkout.isPending ? 'Opening checkout…' : 'Test Pro · $1'}
             </Button>
           )}
           <span className="text-xs text-muted-foreground sm:text-sm" data-testid="text-storage-mode">Private Supabase guest account</span>

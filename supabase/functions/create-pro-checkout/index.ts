@@ -57,8 +57,8 @@ const checkoutHandler = withSupabase({ auth: 'user' }, async (req, ctx) => {
       line_items: [
         {
           price_data: {
-            currency: 'kwd',
-            unit_amount: 1000,
+            currency: 'usd',
+            unit_amount: 100,
             product_data: {
               name: 'Steady Pro Test Access',
               description: 'One-time test purchase to verify the Pro checkout flow.',
