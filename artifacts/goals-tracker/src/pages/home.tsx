@@ -5,6 +5,7 @@ import { format, isPast, parseISO } from 'date-fns';
 import { Check, Pencil, Plus, Search, Trash2, RotateCcw, Minus, CalendarDays } from 'lucide-react';
 import {
   listGoals, createGoal, updateGoal, deleteGoal, startGuestSession, importLegacyGoals, configReady, configError,
+  createProCheckoutSession, getProEntitlement,
   type Goal, type GoalInput,
 } from '@/lib/goals';
 import { Button } from '@/components/ui/button';
@@ -237,6 +238,13 @@ function Dashboard() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const q = useQuery({ queryKey: KEY, queryFn: listGoals, refetchInterval: 30000 });
+  const checkoutResult = new URLSearchParams(window.location.search).get('pro');
+  const proQuery = useQuery({
+    queryKey: ['pro-entitlement'],
+    queryFn: getProEntitlement,
+    refetchInterval: (query) =>
+      checkoutResult === 'success' && query.state.data !== true ? 2000 : false,
+  });
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<'all' | 'active' | 'done'>('all');
   const [cat, setCat] = useState('all');
@@ -249,6 +257,27 @@ function Dashboard() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: KEY }); toast({ title: 'Goal removed' }); setToDelete(null); },
     onError: (e) => toast({ title: 'Could not delete', description: errMsg(e), variant: 'destructive' }),
   });
+
+  const checkout = useMutation({
+    mutationFn: createProCheckoutSession,
+    onSuccess: (url) => window.location.assign(url),
+    onError: (error) =>
+      toast({
+        title: 'Could not start test checkout',
+        description: errMsg(error),
+        variant: 'destructive',
+      }),
+  });
+
+  useEffect(() => {
+    if (checkoutResult === 'cancelled') {
+      toast({ title: 'Checkout cancelled', description: 'No payment was made.' });
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (checkoutResult === 'success' && proQuery.data === true) {
+      toast({ title: 'Pro test access unlocked' });
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [checkoutResult, proQuery.data, toast]);
 
   const goals = q.data ?? [];
   const stats = useMemo(() => {
@@ -272,7 +301,25 @@ function Dashboard() {
     <div className="min-h-[100dvh]">
       <header className="mx-auto flex max-w-6xl items-center gap-3 px-5 pt-6 md:px-8">
         <Mark className="h-7 w-7" /><span className="font-display text-xl">Steady</span>
-        <span className="ml-auto text-xs text-muted-foreground sm:text-sm" data-testid="text-storage-mode">Private Supabase guest account</span>
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+          {proQuery.data ? (
+            <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary" data-testid="status-pro-active">
+              Pro test access
+            </span>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-full"
+              onClick={() => checkout.mutate()}
+              disabled={checkout.isPending || proQuery.isLoading}
+              data-testid="button-test-pro"
+            >
+              {checkout.isPending ? 'Opening checkout…' : 'Test Pro · 1 KWD'}
+            </Button>
+          )}
+          <span className="text-xs text-muted-foreground sm:text-sm" data-testid="text-storage-mode">Private Supabase guest account</span>
+        </div>
       </header>
 
       <main className="mx-auto max-w-6xl px-5 pb-24 md:px-8">

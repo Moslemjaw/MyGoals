@@ -159,3 +159,23 @@ export async function deleteGoal(id: string): Promise<void> {
   if (error) throw error;
   if (!data?.length) throw new Error('This goal was not found. Refresh and try again.');
 }
+
+export async function getProEntitlement(): Promise<boolean> {
+  const { data, error } = await backend()
+    .from('goal_tracker_entitlements')
+    .select('status')
+    .maybeSingle();
+  if (error) throw error;
+  return data?.status === 'active';
+}
+
+export async function createProCheckoutSession(): Promise<string> {
+  const { data, error } = await backend().functions.invoke('create-pro-checkout', {
+    body: {},
+  });
+  if (error) throw error;
+  if (typeof data?.url !== 'string') {
+    throw new Error('Checkout did not return a payment link. Please try again.');
+  }
+  return data.url;
+}
