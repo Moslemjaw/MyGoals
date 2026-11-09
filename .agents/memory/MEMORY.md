@@ -1,0 +1,1 @@
+- [Supabase Edge user identity](supabase-edge-user-claims.md) — `@supabase/server` exposes the authenticated account ID as `userClaims.id`, not JWT `sub`.

@@ -173,7 +173,18 @@ export async function createProCheckoutSession(): Promise<string> {
   const { data, error } = await backend().functions.invoke('create-pro-checkout', {
     body: {},
   });
-  if (error) throw error;
+  if (error) {
+    const context = (error as { context?: unknown }).context;
+    if (context instanceof Response) {
+      let serverMessage: string | null = null;
+      try {
+        const payload = await context.clone().json() as { error?: unknown };
+        if (typeof payload.error === 'string') serverMessage = payload.error;
+      } catch { /* Keep the SDK error when the response is not JSON. */ }
+      if (serverMessage) throw new Error(serverMessage);
+    }
+    throw error;
+  }
   if (typeof data?.url !== 'string') {
     throw new Error('Checkout did not return a payment link. Please try again.');
   }
